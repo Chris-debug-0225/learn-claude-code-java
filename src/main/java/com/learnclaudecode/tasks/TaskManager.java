@@ -49,7 +49,6 @@ public class TaskManager {
      * @return 新任务的 JSON 表示
      */
     public synchronized String create(String subject, String description) {
-        // 任务 ID 采用当前目录内自增策略，尽量贴近 Python 版简单持久化风格。
         TaskRecord task = new TaskRecord();
         task.id = nextId();
         task.subject = subject;

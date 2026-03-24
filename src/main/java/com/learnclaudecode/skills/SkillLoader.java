@@ -29,7 +29,7 @@ public class SkillLoader {
             return;
         }
         try (Stream<Path> stream = Files.walk(skillsDir)) {
-            // 约定每个技能目录用 SKILL.md 作为入口文件，与 Python 版目录协议保持一致。
+            // 约定每个技能目录用 SKILL.md 作为入口文件。
             stream.filter(path -> path.getFileName().toString().equals("SKILL.md"))
                     .sorted()
                     .forEach(this::loadSkillFile);

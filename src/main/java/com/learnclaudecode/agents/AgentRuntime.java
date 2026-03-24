@@ -98,7 +98,7 @@ public class AgentRuntime {
         List<ChatMessage> history = new ArrayList<>();
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            // 每个阶段都使用不同的 prompt 前缀，便于和 Python 教学脚本的交互体验保持一致。
+            // 每个阶段都使用不同的 prompt 前缀。
             System.out.print("\u001B[36m" + config.prompt() + " >> \u001B[0m");
             if (!scanner.hasNextLine()) {
                 break;
@@ -184,7 +184,7 @@ public class AgentRuntime {
                 String toolName = String.valueOf(block.get("name"));
                 @SuppressWarnings("unchecked")
                 Map<String, Object> input = (Map<String, Object>) block.getOrDefault("input", Map.of());
-                // 这里是整个教学项目的核心：把模型声明的工具调用映射到本地 Java 实现。
+                // 把模型声明的工具调用映射到本地 Java 实现。
                 // 你可以把这段 switch 理解成“模型动作意图 -> Java 真实执行逻辑”的翻译层。
                 String output = switch (toolName) {
                     case "bash" -> commandTools.runBash(String.valueOf(input.get("command")));

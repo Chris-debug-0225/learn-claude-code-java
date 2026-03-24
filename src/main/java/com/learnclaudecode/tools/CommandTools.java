@@ -135,7 +135,7 @@ public class CommandTools {
             if (!content.contains(oldText)) {
                 return "Error: Text not found in " + relativePath;
             }
-            // edit_file 采用精确文本替换，尽量贴近 Python 教学版的可预测行为。
+            // edit_file 采用精确文本替换
             Files.writeString(path, content.replaceFirst(java.util.regex.Pattern.quote(oldText), java.util.regex.Matcher.quoteReplacement(newText)), StandardCharsets.UTF_8);
             return "Edited " + relativePath;
         } catch (Exception e) {

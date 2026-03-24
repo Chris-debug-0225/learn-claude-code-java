@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
- * 环境配置读取器，对齐 Python 版本的 .env + 环境变量行为。
+ * 环境配置读取器
  */
 public final class EnvConfig {
     private final Dotenv dotenv;
@@ -20,7 +20,7 @@ public final class EnvConfig {
      * 读取环境变量并初始化模型访问所需配置。
      */
     public EnvConfig() {
-        // 与 Python 版保持一致：优先允许从 .env 读取，同时兼容系统环境变量覆盖。
+        // 优先允许从 .env 读取，同时兼容系统环境变量覆盖。
         this.dotenv = Dotenv.configure().ignoreIfMissing().load();
         this.modelId = require("MODEL_ID");
         this.apiKey = getenv("ANTHROPIC_API_KEY").orElse("");

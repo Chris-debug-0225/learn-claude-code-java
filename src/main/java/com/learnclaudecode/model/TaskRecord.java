@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 任务持久化模型，字段命名尽量对齐 Python 版 JSON。
+ * 任务持久化模型
  */
 public class TaskRecord {
     public int id;
