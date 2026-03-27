@@ -72,6 +72,8 @@ public class TaskManager {
 
     /**
      * 更新任务状态与依赖关系。
+     * 这个方法会在同一个同步临界区内完成整个更新流程，避免并发修改同一任务时出现状态覆盖。
+     * 整体顺序是：先加载任务，再处理状态变更，随后追加依赖关系，最后刷新更新时间并持久化。
      *
      * @param taskId 任务 ID
      * @param status 新状态
@@ -80,7 +82,10 @@ public class TaskManager {
      * @return 更新后的任务 JSON 或删除结果
      */
     public synchronized String update(int taskId, String status, List<Integer> addBlockedBy, List<Integer> addBlocks) {
+        // 先从磁盘加载目标任务，后续所有修改都基于这份最新记录进行。
         TaskRecord task = load(taskId);
+
+        // 如果调用方传入了新的状态，就先处理状态更新逻辑。
         if (status != null && !status.isBlank()) {
             task.status = status;
             if ("completed".equals(status)) {
@@ -88,6 +93,8 @@ public class TaskManager {
                 clearDependency(taskId);
             }
             if ("deleted".equals(status)) {
+                // deleted 是一个特殊状态：这里不会把状态写回 JSON，而是直接删除任务文件。
+                // 删除成功后立即返回，不再继续下面的依赖追加和保存流程。
                 try {
                     Files.deleteIfExists(path(taskId));
                 } catch (IOException e) {
@@ -96,6 +103,9 @@ public class TaskManager {
                 return "Task " + taskId + " deleted";
             }
         }
+
+        // 追加“当前任务被哪些前置任务阻塞”的依赖。
+        // 这里只做去重追加，不会清空已有 blockedBy，也不会覆盖原有依赖关系。
         if (addBlockedBy != null) {
             for (Integer id : addBlockedBy) {
                 if (!task.blockedBy.contains(id)) {
@@ -103,6 +113,9 @@ public class TaskManager {
                 }
             }
         }
+
+        // 追加“当前任务会阻塞哪些后续任务”的依赖。
+        // 同样采用去重追加，避免重复写入相同任务 ID。
         if (addBlocks != null) {
             for (Integer id : addBlocks) {
                 if (!task.blocks.contains(id)) {
@@ -110,8 +123,12 @@ public class TaskManager {
                 }
             }
         }
+
+        // 只要任务没有被删除，这里就刷新更新时间并重新落盘保存。
         task.updated_at = Instant.now().getEpochSecond();
         save(task);
+
+        // 返回最新任务 JSON，便于调用方直接看到更新后的完整结果。
         return JsonUtils.toPrettyJson(task);
     }
 
@@ -158,14 +175,20 @@ public class TaskManager {
     }
 
     /**
-     * 扫描可被自治队友认领的未认领任务。
+     * 扫描当前可立即认领的待处理任务。
+     * 这里返回的是满足以下条件的任务：
+     * 1. 状态仍为 pending；
+     * 2. 还没有被任何执行者认领；
+     * 3. 没有 blockedBy 前置依赖阻塞。
+     * 这类任务通常可以被队友流程或调度逻辑直接拿来认领并开始处理。
      *
      * @return 可认领任务列表
      */
     public synchronized List<TaskRecord> scanUnclaimed() {
         List<TaskRecord> result = new ArrayList<>();
         for (TaskRecord task : loadAll()) {
-            // 只有未被认领且没有依赖阻塞的任务，才适合自治队友自动接单。
+            // 这里只筛出“当前就可以开始做”的任务：
+            // pending 表示尚未开始，owner 为空表示还没人接手，blockedBy 为空表示没有前置任务阻塞。
             if ("pending".equals(task.status) && (task.owner == null || task.owner.isBlank()) && task.blockedBy.isEmpty()) {
                 result.add(task);
             }
@@ -175,6 +198,14 @@ public class TaskManager {
 
     /**
      * 将任务绑定到指定 worktree。
+     * 这样做的目的，是把“任务记录”与“实际工作的独立目录”关联起来。
+     * 绑定后，外部系统可以知道某个任务正在什么 worktree 中处理，便于：
+     * 1. 为不同任务提供彼此隔离的工作空间；
+     * 2. 跟踪任务当前对应的开发车道；
+     * 3. 在移除 worktree、回收资源或恢复任务现场时找到对应关系。
+     *
+     * 这个方法本身只负责把绑定关系写回任务记录；
+     * 它不会创建 worktree 目录，而是记录“该任务已经关联到哪个 worktree”。
      *
      * @param taskId 任务 ID
      * @param worktree worktree 名称
@@ -182,14 +213,22 @@ public class TaskManager {
      * @return 更新后的任务 JSON
      */
     public synchronized String bindWorktree(int taskId, String worktree, String owner) {
+        // 先加载任务，再把 worktree 标识写入任务记录，建立任务到工作目录的关联。
         TaskRecord task = load(taskId);
         task.worktree = worktree;
+
+        // 如果调用方同时传入了 owner，就一并记录认领者，避免任务和执行者信息脱节。
         if (owner != null && !owner.isBlank()) {
             task.owner = owner;
         }
+
+        // 若任务此前还处于 pending，说明它只是待处理；
+        // 一旦绑定到具体 worktree，就意味着已经进入实际执行阶段，因此推进为 in_progress。
         if ("pending".equals(task.status)) {
             task.status = "in_progress";
         }
+
+        // 更新任务最后修改时间并保存，使任务状态、认领者和 worktree 绑定关系持久化。
         task.updated_at = Instant.now().getEpochSecond();
         save(task);
         return JsonUtils.toPrettyJson(task);
