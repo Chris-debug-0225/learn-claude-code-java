@@ -14,11 +14,7 @@ import com.learnclaudecode.team.TeammateManager;
 import com.learnclaudecode.tools.CommandTools;
 import com.learnclaudecode.tools.TodoManager;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * 通用 agent 运行时，通过能力开关映射 s01-s12 与 s_full 的不同阶段。
@@ -90,7 +86,7 @@ public class AgentRuntime {
     }
 
     /**
-     * 启动 REPL 交互循环。
+     * 启动 REPL（Read-Eval-Print Loop） 交互循环。
      *
      * @param config 当前阶段配置
      */
@@ -114,7 +110,7 @@ public class AgentRuntime {
             if (content instanceof List<?> list) {
                 for (Object item : list) {
                     if (item instanceof Map<?, ?> block && block.containsKey("text")) {
-                        System.out.println(block.get("text"));
+                        System.out.println(config.prompt() + " 最终 output：" +block.get("text"));
                     }
                 }
             }
@@ -232,7 +228,7 @@ public class AgentRuntime {
                     case "worktree_events" -> worktreeManager.recentEvents(numberOrDefault(input.get("limit"), 20));
                     default -> "Unknown tool: " + toolName;
                 };
-                System.out.println("> " + toolName + ": " + output.substring(0, Math.min(200, output.length())));
+                System.out.println(config.prompt() + " 中间 output > " + toolName + ": \n" + output.substring(0, Math.min(200, output.length())));
                 results.add(Map.of(
                         "type", "tool_result",
                         "tool_use_id", String.valueOf(block.get("id")),

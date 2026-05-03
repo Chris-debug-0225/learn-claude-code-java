@@ -21,9 +21,8 @@ mvn exec:java -Dexec.mainClass=com.learnclaudecode.agents.S01AgentLoop
 
 ## 你可以试试这些输入
 
-- "当前目录下有哪些 Java 文件？"
-- "查看 pom.xml 的内容"
-- "创建一个 hello.txt 文件，内容写 Hello World"
+1. "你好，请你做一个自我介绍。"
+2. "查看 pom.xml 的内容，并简单总结。"
 
 ## 要读的源码
 

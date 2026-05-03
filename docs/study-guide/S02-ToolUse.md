@@ -26,9 +26,8 @@ mvn exec:java -Dexec.mainClass=com.learnclaudecode.agents.S02ToolUse
 
 ## 你可以试试这些输入
 
-- "读一下 pom.xml"
-- "创建一个 src/main/java/Hello.java，写一个 Hello World 程序"
-- "把 pom.xml 里的 Java 版本从 17 改成 21"（注意：这只是演示，改完记得还原）
+- "查看 pom.xml 的内容，并简单总结。"
+- "在项目的的根目录下创建一个 测试.txt 的文件，内容为：Hello Agent"
 
 ## 要读的源码
 
