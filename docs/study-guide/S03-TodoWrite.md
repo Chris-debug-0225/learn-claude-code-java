@@ -24,10 +24,39 @@ mvn exec:java -Dexec.mainClass=com.learnclaudecode.agents.S03TodoWrite
 
 ## 你可以试试这些输入
 
-- "帮我在 src 目录下创建 3 个 Java 文件：Hello.java、World.java、App.java，每个都写一个简单的类"
-- "读一下项目里所有的 .java 文件，统计每个文件的代码行数"
+- "帮我在 src 目录下创建 3 个 Java 文件：test1.java、test2.java、test3.java，请使用todo规划，每个都写一个简单的算法"
 
 给它一个需要多步骤完成的任务，观察它是不是会自动列 todo。
+
+> 提示词约束：
+>
+> 1. 你必须严格按照工具的 JSON Schema 定义调用工具。
+> 2. 禁止修改字段名，禁止将数组序列化为字符串。
+> 3. 如果不确定格式，先输出 {"name": "...", "input": {...}} 的结构。
+>
+> 我增强了todo 工具的 description，包含完整的 JSON 示例和明确的格式约束。但感觉还是没有用，模型返回的依旧随心所欲。所以目前还是在代码层面拿到返回结果做容错处理。你也可以在输入提示词的时候做约束。
+>
+> ```java
+>         tools.add(tool("todo",
+>                 "Update task list. Track progress on multi-step tasks. " +
+>                 "Input MUST be a JSON object with key \"items\" (an array, NOT a string). " +
+>                 "Each item needs \"text\" (string) and \"status\" (pending/in_progress/completed). " +
+>                 "Example: {\"items\": [{\"text\": \"Create Hello.java\", \"status\": \"pending\"}, {\"text\": \"Create World.java\", \"status\": \"in_progress\"}]}",
+>                 Map.of("type", "object",
+>                         "properties", Map.of("items",
+>                                 Map.of("type", "array",
+>                                         "items", Map.of("type", "object",
+>                                                 "properties", Map.of(
+>                                                         "text", Map.of("type", "string"),
+>                                                         "status", Map.of("type", "string", "enum", List.of("pending", "in_progress", "completed"))
+>                                                 ),
+>                                                 "required", List.of("text", "status")
+>                                         )
+>                                 )
+>                         ),
+>                         "required", List.of("items")
+>                 )));
+> ```
 
 ## 要读的源码
 
@@ -51,7 +80,7 @@ public static StageConfig s03() {
 ```java
 public String update(List<Map<String, Object>> newItems) {
     // 每个 item 需要有 text/content 和 status
-    // status 只能是 pending / in_progress / completed
+    // status 只能是 pending（待处理） / in_progress（进行中） / completed（已完成）
     // 同一时间只能有一个 in_progress 的任务
     // 最多 20 个 todo
 }

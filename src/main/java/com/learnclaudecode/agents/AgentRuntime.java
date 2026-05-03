@@ -189,9 +189,7 @@ public class AgentRuntime {
                     case "edit_file" -> commandTools.runEdit(String.valueOf(input.get("path")), String.valueOf(input.get("old_text")), String.valueOf(input.get("new_text")));
                     case "todo", "TodoWrite" -> {
                         usedTodo = true;
-                        @SuppressWarnings("unchecked")
-                        List<Map<String, Object>> items = (List<Map<String, Object>>) input.getOrDefault("items", List.of());
-                        yield todoManager.update(items);
+                        yield todoManager.update(normalizeTodoInput(input));
                     }
                     case "task" -> runSubagent(String.valueOf(input.get("prompt")), config.subagentWritable());
                     case "load_skill" -> skillLoader.getContent(String.valueOf(input.get("name")));
@@ -342,5 +340,67 @@ public class AgentRuntime {
      */
     private String stringOrNull(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 容错修复模型返回的 todo input，处理字段名、类型、子字段名三种常见偏差。
+     *
+     * @param input 模型返回的原始 input
+     * @return 标准化后的 items 列表
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> normalizeTodoInput(Map<String, Object> input) {
+        // 1. 字段名修复：items / todos / tasks / list
+        Object raw = input.get("items");
+        if (raw == null) {
+            for (String altKey : List.of("todos", "tasks", "list")) {
+                if (input.containsKey(altKey)) {
+                    raw = input.get(altKey);
+                    break;
+                }
+            }
+        }
+        if (raw == null) return List.of();
+
+        // 2. 类型修复：String -> List
+        List<Map<String, Object>> items;
+        if (raw instanceof String str) {
+            try {
+                items = JsonUtils.fromJson(str, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            } catch (Exception e) {
+                return List.of();
+            }
+        } else if (raw instanceof List<?> list) {
+            items = new ArrayList<>();
+            for (Object o : list) {
+                if (o instanceof Map<?, ?> m) {
+                    items.add((Map<String, Object>) m);
+                }
+            }
+        } else {
+            return List.of();
+        }
+
+        // 3. 子字段名修复
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> item : items) {
+            Map<String, Object> fixed = new HashMap<>(item);
+            if (!fixed.containsKey("text") || String.valueOf(fixed.get("text")).isBlank()) {
+                for (String altKey : List.of("title", "name", "task", "content", "description")) {
+                    Object val = fixed.get(altKey);
+                    if (val != null && !String.valueOf(val).isBlank()) {
+                        fixed.put("text", String.valueOf(val));
+                        break;
+                    }
+                }
+            }
+            String status = String.valueOf(fixed.getOrDefault("status", "pending")).toLowerCase();
+            if (status.equals("done") || status.equals("finished")) status = "completed";
+            if (status.equals("doing") || status.equals("active")) status = "in_progress";
+            if (!List.of("pending", "in_progress", "completed").contains(status)) status = "pending";
+            fixed.put("status", status);
+            result.add(fixed);
+        }
+        return result;
     }
 }
