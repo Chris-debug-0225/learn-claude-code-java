@@ -2,7 +2,7 @@
 
 ## 这个阶段要学什么
 
-S03 的 Todo 是个好起点，但它有两个局限：
+S03 的 Todo 是个好起点，但它有三个局限：
 
 1. **内存里的**：Agent 重启后，todo 就丢了
 2. **没有依赖关系**：不能表达"先做完 A 才能做 B"
@@ -27,7 +27,7 @@ mvn exec:java -Dexec.mainClass=com.learnclaudecode.agents.S07TaskSystem
 
 - "创建三个任务：1. 分析项目结构 2. 编写文档 3. 代码审查。其中 2 和 3 依赖于 1 完成后才能开始"
 - "列出所有任务"
-- "把任务 1 标记为完成"（然后再看任务列表，2 和 3 的阻塞会自动解除）
+- "把任务 1 标记为completed"（为什么要指定completed，因为我再测试的时候，他会标记为done，这也没问题，因为他不知道都有哪些状态，所以指定这样比较稳妥。然后再看任务列表，2 和 3 的阻塞会自动解除）
 
 ## 要读的源码
 
@@ -171,7 +171,7 @@ public synchronized String listAll() {
   task_update(2, addBlockedBy=[1]) → task_2 被 task_1 阻塞
   task_update(3, addBlockedBy=[2]) → task_3 被 task_2 阻塞
 
-用户: "把任务 1 标记为完成"
+用户: "把任务 1 标记为completed"
 
 模型调用:
   task_update(1, status="completed")

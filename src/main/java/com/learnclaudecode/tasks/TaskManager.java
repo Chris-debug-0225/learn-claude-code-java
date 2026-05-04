@@ -50,13 +50,13 @@ public class TaskManager {
      */
     public synchronized String create(String subject, String description) {
         TaskRecord task = new TaskRecord();
-        task.id = nextId();
+        task.id = nextId();     // 基于现有最大 ID + 1
         task.subject = subject;
         task.description = description == null ? "" : description;
         task.status = "pending";
         task.created_at = Instant.now().getEpochSecond();
         task.updated_at = task.created_at;
-        save(task);
+        save(task);         // 文件写入 .tasks/task_N.json
         return JsonUtils.toPrettyJson(task);
     }
 
@@ -146,9 +146,9 @@ public class TaskManager {
         for (TaskRecord task : tasks) {
             // 这里把底层 JSON 任务记录转成更适合人读的看板格式。
             String marker = switch (task.status) {
-                case "completed" -> "[x]";
-                case "in_progress" -> "[>]";
-                default -> "[ ]";
+                case "completed" -> "[✅]";      // 已完成
+                case "in_progress" -> "[⚙️]";    // 进行中
+                default -> "[⏳]";               // 待处理
             };
             String owner = task.owner == null || task.owner.isBlank() ? "" : " @" + task.owner;
             String blocked = task.blockedBy.isEmpty() ? "" : " (blocked by: " + task.blockedBy + ")";
