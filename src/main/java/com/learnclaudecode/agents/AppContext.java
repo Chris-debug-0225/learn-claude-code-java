@@ -45,7 +45,7 @@ public final class AppContext {
         CommandTools commandTools = new CommandTools(paths);
         TodoManager todoManager = new TodoManager();
         SkillLoader skillLoader = new SkillLoader(paths);
-        CompressionService compressionService = new CompressionService(paths, client, 50000, 3);
+        CompressionService compressionService = new CompressionService(paths, client, 10000, 3);
         TaskManager taskManager = new TaskManager(paths);
         BackgroundManager backgroundManager = new BackgroundManager(paths);
         MessageBus messageBus = new MessageBus(paths);

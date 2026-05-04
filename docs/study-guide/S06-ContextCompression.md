@@ -33,7 +33,7 @@ mvn exec:java -Dexec.mainClass=com.learnclaudecode.agents.S06ContextCompact
 
 观察控制台，当对话足够长时你会看到 `[auto-compact triggered]` 的提示。
 
-或者直接对它说："压缩一下当前的对话上下文"，它会调用 `compact` 工具。
+或者直接对它说："压缩一下当前的对话上下文"，它会调用 `compact` 工具。"
 
 ## 要读的源码
 
@@ -136,7 +136,7 @@ while (true) {
   [user] 工具结果（大文件）       ← 最近 3 条保留完整
   [assistant] 回答N
 
-当 token 数超过 50000:
+当 token 数超过 10000:
   → 保存完整历史到 .transcripts/transcript_xxx.jsonl
   → 让模型生成摘要
   → 消息历史变成只有 2 条（摘要 + 确认）
