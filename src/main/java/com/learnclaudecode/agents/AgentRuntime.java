@@ -95,7 +95,7 @@ public class AgentRuntime {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             // 每个阶段都使用不同的 prompt 前缀。
-            System.out.print("\u001B[36m" + config.prompt() + " >> \u001B[0m");
+            System.out.print("\u001B[32m" + config.prompt() + " >> \u001B[32m");
             if (!scanner.hasNextLine()) {
                 break;
             }
@@ -110,7 +110,7 @@ public class AgentRuntime {
             if (content instanceof List<?> list) {
                 for (Object item : list) {
                     if (item instanceof Map<?, ?> block && block.containsKey("text")) {
-                        System.out.println(config.prompt() + " 最终 output：" +block.get("text"));
+                        System.out.println("\u001B[36m" + config.prompt() + " 最终 output：\n " + block.get("text") + "\u001B[36m");
                     }
                 }
             }
@@ -226,7 +226,7 @@ public class AgentRuntime {
                     case "worktree_events" -> worktreeManager.recentEvents(numberOrDefault(input.get("limit"), 20));
                     default -> "Unknown tool: " + toolName;
                 };
-                System.out.println(config.prompt() + " 中间 output > " + toolName + ": \n" + output.substring(0, Math.min(200, output.length())));
+                System.out.println("\u001B[33m" + config.prompt() + " 中间 output > " + toolName + ":\n" + output.substring(0, Math.min(200, output.length())) + "\u001B[33m");
                 results.add(Map.of(
                         "type", "tool_result",
                         "tool_use_id", String.valueOf(block.get("id")),
