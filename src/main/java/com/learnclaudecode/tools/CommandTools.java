@@ -41,20 +41,24 @@ public class CommandTools {
             }
         }
         try {
+            // 构建进程并在工作目录下执行命令
             ProcessBuilder builder = new ProcessBuilder(shellCommand(command));
             builder.directory(paths.workdir().toFile());
             Process process = builder.start();
+            // 等待命令执行完成，设置120秒超时限制
             boolean finished = process.waitFor(120, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 return "Error: Timeout (120s)";
             }
+            // 捕获标准输出和错误流，合并后返回
             String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
             String out = (stdout + stderr).trim();
             if (out.isBlank()) {
                 return "(no output)";
             }
+            // 截断输出结果，最多返回50000字符
             return out.substring(0, Math.min(50000, out.length()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -109,10 +113,12 @@ public class CommandTools {
      */
     public String runWrite(String relativePath, String content) {
         try {
+            // 解析安全路径并自动创建父目录
             Path path = paths.safeResolve(relativePath);
             if (path.getParent() != null) {
                 Files.createDirectories(path.getParent());
             }
+            // 以UTF-8编码写入文件内容
             Files.writeString(path, content, StandardCharsets.UTF_8);
             return "Wrote " + content.length() + " bytes to " + relativePath;
         } catch (Exception e) {

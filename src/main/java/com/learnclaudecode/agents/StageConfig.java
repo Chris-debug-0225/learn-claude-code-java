@@ -172,10 +172,12 @@ public record StageConfig(
     public static StageConfig s08() {
         List<Map<String, Object>> tools = new ArrayList<>(baseTools());
         tools.add(tool("background_run", "Run command in background thread.", Map.of("type", "object", "properties", Map.of("command", Map.of("type", "string"), "timeout", Map.of("type", "integer")), "required", List.of("command"))));
-        tools.add(tool("check_background", "Check background task status.", Map.of("type", "object", "properties", Map.of("task_id", Map.of("type", "string")))));
+        tools.add(tool("check_background", "Check background task status. Only use when the user explicitly asks about a background task.", Map.of("type", "object", "properties", Map.of("task_id", Map.of("type", "string")))));
         return new StageConfig("s08", false, false, true, false, false, false,
                 tools,
-                "You are a coding agent at ${WORKDIR}. Use background_run for long-running commands.");
+                "You are a coding agent at ${WORKDIR}. Use background_run for long-running commands. "
+                + "After calling background_run, IMMEDIATELY reply with text (e.g. 'Task started, feel free to ask me anything else'). "
+                + "Do NOT poll with check_background -- results will be injected automatically.");
     }
 
     /**

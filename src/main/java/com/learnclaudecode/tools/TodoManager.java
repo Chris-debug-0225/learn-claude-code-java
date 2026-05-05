@@ -26,8 +26,20 @@ public class TodoManager {
         List<Map<String, Object>> validated = new ArrayList<>();
         for (int i = 0; i < newItems.size(); i++) {
             Map<String, Object> item = newItems.get(i);
+            // status 别名映射
             String status = String.valueOf(item.getOrDefault("status", "pending")).toLowerCase();
-            String text = String.valueOf(item.getOrDefault("text", item.getOrDefault("content", ""))).trim();
+            if (status.equals("done") || status.equals("finished")) status = "completed";
+            if (status.equals("doing") || status.equals("active")) status = "in_progress";
+
+            // text 字段别名兜底：text > content > title > name > task > description
+            String text = "";
+            for (String key : List.of("text", "content", "title", "name", "task", "description")) {
+                Object val = item.get(key);
+                if (val != null && !String.valueOf(val).isBlank()) {
+                    text = String.valueOf(val).trim();
+                    break;
+                }
+            }
             String id = String.valueOf(item.getOrDefault("id", i + 1));
             String activeForm = String.valueOf(item.getOrDefault("activeForm", text)).trim();
             if (text.isBlank()) {
@@ -47,6 +59,7 @@ public class TodoManager {
                     "content", text
             ));
         }
+        // 确保同一时间最多只有一个任务处于进行中状态
         if (inProgressCount > 1) {
             throw new IllegalArgumentException("Only one task can be in_progress at a time");
         }
@@ -77,9 +90,9 @@ public class TodoManager {
         for (Map<String, Object> item : items) {
             String status = String.valueOf(item.get("status"));
             String marker = switch (status) {
-                case "completed" -> "[x]";
-                case "in_progress" -> "[>]";
-                default -> "[ ]";
+                case "completed" -> "[✅]";      // 已完成
+                case "in_progress" -> "[⚙️]";    // 进行中
+                default -> "[⏳]";               // 待处理
             };
             if ("completed".equals(status)) {
                 done++;

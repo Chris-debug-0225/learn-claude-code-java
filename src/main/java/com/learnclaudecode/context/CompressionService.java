@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -61,46 +61,65 @@ public class CompressionService {
 
     /**
      * 对较老的工具结果做轻量清理。
-     * 实现思路不是删除整条消息，而是只把“较早的 tool_result 内容”替换为简短占位符。
+     * 实现思路不是删除整条消息，而是只把“较早的 tool_result 内容”替换为简短占位符：[cleared]。
      * 这样既能减少上下文体积，又能保留这次工具调用“曾经发生过”的结构信息。
      *
      * @param messages 消息历史
      */
     public void microCompact(List<ChatMessage> messages) {
-        // 微压缩只清理较老的 tool_result 大文本，尽量保留最近几轮完整上下文。
-        List<Map<String, Object>> toolResults = new ArrayList<>();
+        // 统计工具结果总数，判断是否需要压缩
+        int toolResultCount = 0;
         for (ChatMessage message : messages) {
-            // 只有 user 角色且 content 是结构化列表时，才可能包含 tool_result 片段。
-            // 普通文本消息或 assistant 消息在这里直接跳过。
+            // 仅处理 user 角色的结构化消息（包含 tool_result 列表）
             if (!"user".equals(message.role()) || !(message.content() instanceof List<?> parts)) {
                 continue;
             }
             for (Object part : parts) {
-                // 每个 part 可能是一个结构化块，这里只提取 type=tool_result 的部分。
-                if (part instanceof Map<?, ?> raw) {
-                    Object type = raw.get("type");
-                    if ("tool_result".equals(type)) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> typed = (Map<String, Object>) part;
-                        // 收集到单独列表中，后面统一按“从旧到新”的顺序处理。
-                        toolResults.add(typed);
-                    }
+                if (part instanceof Map<?, ?> raw && "tool_result".equals(raw.get("type"))) {
+                    toolResultCount++;
                 }
             }
         }
-        // 如果工具结果总数本来就不多，说明上下文压力还不大，直接保留全部原文。
-        if (toolResults.size() <= keepRecent) {
+
+        // 工具结果数量未超过阈值，无需压缩
+        if (toolResultCount <= keepRecent) {
             return;
         }
-        // 只清理较老的结果，最后 keepRecent 条保持原样，尽量保留最近操作的完整细节。
-        for (int i = 0; i < toolResults.size() - keepRecent; i++) {
-            Map<String, Object> result = toolResults.get(i);
-            Object content = result.get("content");
-            // 这里只处理字符串类型的大文本结果。
-            // 如果内容较短，或者不是字符串结构，就保留原值不动。
-            if (content instanceof String text && text.length() > 100) {
-                // 用固定占位符替换真实输出，达到“保留调用痕迹、删除大块正文”的目的。
-                result.put("content", "[cleared]");
+
+        // 遍历消息列表，将较旧的user结果内容替换为 [cleared]
+        int compactBefore = toolResultCount - keepRecent;
+        int seenToolResults = 0;
+        for (int i = 0; i < messages.size(); i++) {
+            ChatMessage message = messages.get(i);
+            if (!"user".equals(message.role()) || !(message.content() instanceof List<?> parts)) {
+                continue;
+            }
+
+            boolean changed = false;
+            List<Object> rewrittenParts = new ArrayList<>(parts.size());
+            for (Object part : parts) {
+                Object rewrittenPart = part;
+                if (part instanceof Map<?, ?> raw && "tool_result".equals(raw.get("type"))) {
+                    seenToolResults++;
+                    Object content = raw.get("content");
+
+                    // 仅处理较旧且内容较长的user结果
+                    if (seenToolResults <= compactBefore && content instanceof String text && text.length() > 100) {
+                        Map<String, Object> rewrittenMap = new LinkedHashMap<>();
+                        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+                            rewrittenMap.put(String.valueOf(entry.getKey()), entry.getValue());
+                        }
+                        rewrittenMap.put("content", "[cleared]");
+                        rewrittenPart = rewrittenMap;
+                        changed = true;
+                    }
+                }
+                rewrittenParts.add(rewrittenPart);
+            }
+
+            // 如果有修改，更新消息列表中的对应位置
+            if (changed) {
+                messages.set(i, new ChatMessage(message.role(), rewrittenParts));
             }
         }
     }

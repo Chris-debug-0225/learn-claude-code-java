@@ -14,11 +14,7 @@ import com.learnclaudecode.team.TeammateManager;
 import com.learnclaudecode.tools.CommandTools;
 import com.learnclaudecode.tools.TodoManager;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * 通用 agent 运行时，通过能力开关映射 s01-s12 与 s_full 的不同阶段。
@@ -90,7 +86,7 @@ public class AgentRuntime {
     }
 
     /**
-     * 启动 REPL 交互循环。
+     * 启动 REPL（Read-Eval-Print Loop） 交互循环。
      *
      * @param config 当前阶段配置
      */
@@ -99,7 +95,7 @@ public class AgentRuntime {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             // 每个阶段都使用不同的 prompt 前缀。
-            System.out.print("\u001B[36m" + config.prompt() + " >> \u001B[0m");
+            System.out.print("\u001B[32m" + config.prompt() + " >> \u001B[32m");
             if (!scanner.hasNextLine()) {
                 break;
             }
@@ -114,7 +110,7 @@ public class AgentRuntime {
             if (content instanceof List<?> list) {
                 for (Object item : list) {
                     if (item instanceof Map<?, ?> block && block.containsKey("text")) {
-                        System.out.println(block.get("text"));
+                        System.out.println("\u001B[36m" + config.prompt() + " 最终 output：\n " + block.get("text") + "\u001B[36m");
                     }
                 }
             }
@@ -193,9 +189,7 @@ public class AgentRuntime {
                     case "edit_file" -> commandTools.runEdit(String.valueOf(input.get("path")), String.valueOf(input.get("old_text")), String.valueOf(input.get("new_text")));
                     case "todo", "TodoWrite" -> {
                         usedTodo = true;
-                        @SuppressWarnings("unchecked")
-                        List<Map<String, Object>> items = (List<Map<String, Object>>) input.getOrDefault("items", List.of());
-                        yield todoManager.update(items);
+                        yield todoManager.update(normalizeTodoInput(input));
                     }
                     case "task" -> runSubagent(String.valueOf(input.get("prompt")), config.subagentWritable());
                     case "load_skill" -> skillLoader.getContent(String.valueOf(input.get("name")));
@@ -232,7 +226,7 @@ public class AgentRuntime {
                     case "worktree_events" -> worktreeManager.recentEvents(numberOrDefault(input.get("limit"), 20));
                     default -> "Unknown tool: " + toolName;
                 };
-                System.out.println("> " + toolName + ": " + output.substring(0, Math.min(200, output.length())));
+                System.out.println("\u001B[33m" + config.prompt() + " 中间 output > " + toolName + ":\n" + output.substring(0, Math.min(200, output.length())) + "\u001B[33m");
                 results.add(Map.of(
                         "type", "tool_result",
                         "tool_use_id", String.valueOf(block.get("id")),
@@ -346,5 +340,67 @@ public class AgentRuntime {
      */
     private String stringOrNull(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 容错修复模型返回的 todo input，处理字段名、类型、子字段名三种常见偏差。
+     *
+     * @param input 模型返回的原始 input
+     * @return 标准化后的 items 列表
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> normalizeTodoInput(Map<String, Object> input) {
+        // 1. 字段名修复：items / todos / tasks / list
+        Object raw = input.get("items");
+        if (raw == null) {
+            for (String altKey : List.of("todos", "tasks", "list")) {
+                if (input.containsKey(altKey)) {
+                    raw = input.get(altKey);
+                    break;
+                }
+            }
+        }
+        if (raw == null) return List.of();
+
+        // 2. 类型修复：String -> List
+        List<Map<String, Object>> items;
+        if (raw instanceof String str) {
+            try {
+                items = JsonUtils.fromJson(str, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            } catch (Exception e) {
+                return List.of();
+            }
+        } else if (raw instanceof List<?> list) {
+            items = new ArrayList<>();
+            for (Object o : list) {
+                if (o instanceof Map<?, ?> m) {
+                    items.add((Map<String, Object>) m);
+                }
+            }
+        } else {
+            return List.of();
+        }
+
+        // 3. 子字段名修复
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> item : items) {
+            Map<String, Object> fixed = new HashMap<>(item);
+            if (!fixed.containsKey("text") || String.valueOf(fixed.get("text")).isBlank()) {
+                for (String altKey : List.of("title", "name", "task", "content", "description")) {
+                    Object val = fixed.get(altKey);
+                    if (val != null && !String.valueOf(val).isBlank()) {
+                        fixed.put("text", String.valueOf(val));
+                        break;
+                    }
+                }
+            }
+            String status = String.valueOf(fixed.getOrDefault("status", "pending")).toLowerCase();
+            if (status.equals("done") || status.equals("finished")) status = "completed";
+            if (status.equals("doing") || status.equals("active")) status = "in_progress";
+            if (!List.of("pending", "in_progress", "completed").contains(status)) status = "pending";
+            fixed.put("status", status);
+            result.add(fixed);
+        }
+        return result;
     }
 }
