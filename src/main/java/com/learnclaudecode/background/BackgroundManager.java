@@ -20,7 +20,9 @@ import java.util.concurrent.TimeUnit;
 public class BackgroundManager {
     private final WorkspacePaths paths;
     private final CommandTools commandTools;
+    // 所有后台任务的状态表
     private final ConcurrentHashMap<String, Map<String, Object>> tasks = new ConcurrentHashMap<>();
+    // 已完成任务的通知队列
     private final BlockingQueue<Map<String, Object>> notifications = new LinkedBlockingQueue<>();
 
     /**

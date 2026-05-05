@@ -23,7 +23,7 @@ mvn exec:java -Dexec.mainClass=com.learnclaudecode.agents.S08BackgroundTasks
 
 ## 你可以试试这些输入
 
-- "在后台运行 `ping -c 5 localhost`"（Linux/Mac）或 "在后台运行 `ping -n 5 localhost`"（Windows）
+- "在后台运行 `ping -n 50 baidu.com`，检查可是否请求超时"
 - 然后立刻问它别的问题，比如"读一下 pom.xml"
 - 再问"刚才的后台任务完成了吗？"
 
@@ -37,7 +37,7 @@ public static StageConfig s08() {
     tools.add(tool("background_run",   "Run command in background thread.", ...));
     tools.add(tool("check_background", "Check background task status.",     ...));
     return new StageConfig("s08", false, false, true, false, false, false, tools, "...");
-    //                                       ↑ enableBackground = true
+    //                                       	 ↑ enableBackground = true
 }
 ```
 
